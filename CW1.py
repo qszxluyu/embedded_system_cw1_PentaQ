@@ -28,7 +28,7 @@ def do_connect():   # set the connection
 
 
 def data_reading(MSB,LSB):  # this function does convert output data of the registers to real unit (miliGauss) under default setup.
-    reading = MSB * 256 + LSB
+    reading = MSB * 256 + LSB #"multipllied by 256" means left shift by 8 bits
     if (MSB & 0x80 == 0x80):  # detect if this number is negative
         reading = reading - 65536  # 2's complement calculation for 16bit binary number (65536=2^16)
     reading = int(reading * 0.92)  # under default setup, 1LSB=0.92miliGauss (see datasheet)
@@ -61,7 +61,7 @@ def main():
     reset = 0
     from machine import Pin, I2C
     i2c = I2C(scl=Pin(5), sda=Pin(4), freq=100000)
-    LED_warning = Pin(12, Pin.OUT)
+    LED_warning = Pin(12, Pin.OUT) # define pin12 as the ouput pin of the warning LED
     rtc = machine.RTC()  # get system local time
     warning = 0
 
@@ -69,19 +69,19 @@ def main():
     time.sleep(1)
 
     i2c.writeto_mem(bus_addr, 02, b'\x01')  # edit the mode register of the sensor to enable it to work
-    data = i2c.readfrom_mem(30, 03, 6)  # read the second measurement as the initial position of the sensor # registers 03-08 are the output registers of the sensor
+    data = i2c.readfrom_mem(bus_addr, 03, 6)  # read the second measurement as the initial position of the sensor # registers 03-08 are the output registers of the sensor
 
-    datax = data_reading(MSB=data[0], LSB=data[1])
+    datax = data_reading(MSB=data[0], LSB=data[1]) #registers 3&4 are the x output w
 
-    dataz = data_reading(MSB=data[2], LSB=data[3])
+    dataz = data_reading(MSB=data[2], LSB=data[3])#registers 5&6 are the z output w
 
-    datay = data_reading(MSB=data[4], LSB=data[5])
+    datay = data_reading(MSB=data[4], LSB=data[5])#registers 7&8 are the y output w
 
     print ('initial measurement:', 'X=', datax, 'Y=', datax, 'Z=', dataz, 'time:', rtc.datetime())
 
     while (warning == 0 and reset == 0):
         i2c.writeto_mem(bus_addr, 02, b'\x01')
-        data = i2c.readfrom_mem(30, 03, 6)
+        data = i2c.readfrom_mem(bus_addr, 03, 6)
 
         datax_next = data_reading(MSB=data[0], LSB=data[1])
 
@@ -97,9 +97,9 @@ def main():
         client.publish('esys/PentaQ/test', bytes(payload_before_warning, 'utf-8'))
 
         if abs(changex) >= 100 or abs(changey) >= 100 or abs(changez) >= 100:  # sensitivity set change threshold to be 100 miliGauss
-            warning_time = rtc.datetime()
+            warning_time = rtc.datetime() #read local time from the RTC when warning occurs
             warning = 1
-            LED_warning.high()
+            LED_warning.high() # LED connected to pin12 indicates the warning
             payload_after_warning = json.dumps({'warning at:': warning_time})
             print('warning at:', warning_time, switch.value())
         time.sleep(0.5)  # measurement frequency
